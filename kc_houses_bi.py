@@ -85,8 +85,8 @@ def selling_time(data):
     df1 = data
     df1['month'] = pd.DatetimeIndex(df1['date']).month
     df1['season'] = df1['month'].apply(lambda x: 'spring' if x >= 3 and x <= 5 else
-    'summer' if x >= 6 and x <= 8 else
-    'autumn' if x >= 9 and x <= 11 else 'winter')
+                                                 'summer' if x >= 6 and x <= 8 else
+                                                 'autumn' if x >= 9 and x <= 11 else 'winter')
     df2 = df1[['price', 'zipcode']].groupby('zipcode').median().reset_index()
     df3 = pd.merge(df1, df2, on='zipcode', how='inner')
     df3 = df3.rename(columns={'price_x': 'price', 'price_y': 'price_median_zipcode'}, inplace=False)
@@ -119,7 +119,7 @@ def selling_time(data):
 
 #Hypothesis Testing
 
-# Houses that have waterview are 30% more expensive
+# Houses that have waterfront are 30% more expensive
 def waterview_price_difference(data):
     waterview = data.loc[data['waterfront'] == 1]
     waterview_mean = waterview['price'].mean()
@@ -131,7 +131,7 @@ def waterview_price_difference(data):
     else 'Houses without waterfront')
     waterfront = d1[['price', 'is_waterfront']].groupby('is_waterfront').mean().reset_index()
     fig_1 = px.bar(waterfront, x='is_waterfront', y='price', text_auto=True)
-    st.title('Average price difference between houses with waterfront and houses without it')
+    st.title('Houses with waterfront are 30% more expensive')
     st.subheader(f'Houses with waterfront are {percentage}% more expensive than houses without it.')
     st.plotly_chart(fig_1, use_container_width=True)
     return None
@@ -154,7 +154,7 @@ def before_1955(data):
     return None
 
 
-# Houses that doesnt have a basement are 40% larger
+# Houses that have a basement are 40% larger
 def basement_size(data):
     basement_houses = data.loc[data['sqft_basement'] != 0]
     basement_houses_mean = basement_houses['sqft_living'].mean()
@@ -163,7 +163,7 @@ def basement_size(data):
     percentage = round((basement_houses_mean - no_basement_houses_mean) * 100 / basement_houses_mean)
     d1 = data
     d1['basements'] = d1['sqft_basement'].apply(lambda x: 'Houses with basement' if x > 0
-    else 'Houses without basement')
+                                                           else 'Houses without basement')
     in_basements = d1[['sqft_living', 'basements']].groupby('basements').mean().reset_index()
     fig_1 = px.bar(in_basements, x='basements', y='sqft_living', text_auto=True)
     st.title('Houses with basements tend to have a large built living area than houses without it')
@@ -188,13 +188,13 @@ def yoy_price(data):
     return None
 
 
-# MOM value increase percentage of houses with three or more bathrooms
+# The average MOM increase of price of houses with three or more bathrooms is 5%
 def mom_bathrooms(data):
     data['date'] = pd.to_datetime(data['date'])
     data['year_month'] = data['date'].dt.to_period('M')
     df1 = data.loc[data['bathrooms'] >= 3]
     df1 = df1[['year_month', 'price']].groupby(['year_month']).mean().sort_values(by='year_month',
-                                                                           ascending=True).reset_index()
+                                                                                  ascending=True).reset_index()
     prices = df1['price'].astype('int64').tolist()
     percentage = 0
     counter = 0
@@ -213,7 +213,7 @@ def mom_bathrooms(data):
     return None
 
 
-# Houses with one room represent 15% of all the houses built after the year 2010
+# Houses with one room represent 15% of all the houses built after the year of 2010
 def houses_1_room(data):
     df1 = data.loc[data['yr_built'] >= 2010]
     one_room = len(df1.loc[data['bedrooms'] == 1]) / len(df1.loc[data['bedrooms'] != 1]) * 100
