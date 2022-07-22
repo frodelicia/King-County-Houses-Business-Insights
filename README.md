@@ -1,5 +1,5 @@
-# King-County-Houses-Business-Insights
-Data Visualization app for business propositions and insights for a real estate business model in King County.
+
+![cover kc](https://user-images.githubusercontent.com/99055161/180354030-58ca7c3d-3d80-4c60-96c6-b953a17d68b1.png)
 
 # 1. Business Problem.
 KC Houses is a real estate company based on King County, which is searching for a way to automatize commercial opportunities analyses, aiming to enable making decisions faster, with a smaller work force. 
