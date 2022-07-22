@@ -16,6 +16,7 @@ def get_data(path):
     data = pd.read_csv(path)
     return data
 
+
 #Data Overview
 def data_overview(data):
     st.title('BI Insights - House Sales in King County')
@@ -26,11 +27,11 @@ def data_overview(data):
 
 #Commercial viability
 def commercially_viable_buy(data):
-    # Median price by zipcode
-    df = data[['price', 'zipcode']].groupby('zipcode').median().reset_index()
+    # Mean price by zipcode
+    df = data[['price', 'zipcode']].groupby('zipcode').mean().reset_index()
     df = df.sort_values('price', axis=0)
     df2 = pd.merge(data, df, on='zipcode', how='inner')
-    df2 = df2.rename(columns={'price_x': 'price', 'price_y': 'price_mean'}, inplace=False)
+    df2 = df2.rename(columns={'price_x': 'price', 'price_y': 'price_mean_by_zip'}, inplace=False)
 
     # Size categorization by zipcode median
     quantiles = np.percentile(df2['sqft_living'], [25, 50, 75], interpolation='midpoint')
@@ -38,9 +39,9 @@ def commercially_viable_buy(data):
                                                           2 if x <= int(quantiles[1]) and x > int(quantiles[0]) else
                                                           3 if x <= int(quantiles[2]) and x > int(quantiles[1]) else
                                                           4 if x > int(quantiles[2]) else 'na')
-    df3 = df2[['zipcode', 'size_type']].groupby('zipcode').median().reset_index()
-    df2 = pd.merge(df2, df3, on='zipcode', how='inner')
-    df2 = df2.rename(columns={'size_type_y': 'avg_size', 'size_type_x': 'size_type'}, inplace=False)
+    df4 = df2[['zipcode', 'size_type']].groupby('zipcode').mean().reset_index()
+    df2 = pd.merge(df2, df4, on='zipcode', how='inner')
+    df2 = df2.rename(columns={'size_type_y': 'avg_size_by_zip', 'size_type_x': 'size_type'}, inplace=False)
 
     # Condition categorization
     df2['condition_type'] = df2['condition'].apply(lambda x: 'bad' if x <= 2 else
@@ -48,22 +49,15 @@ def commercially_viable_buy(data):
                                                              'good' if x >= 5 else 'na')
 
     # Commercial viability avaliation
-    df4 = df2
-    df2['commercially_viable'] = df2[(df2['price'] < df2['price_mean'])
-                                     & (df2['size_type'] > df2['avg_size'])
+    df2['commercially_viable'] = df2[(df2['price'] < df2['price_mean_by_zip'])
+                                     & (df2['size_type'] > df2['avg_size_by_zip'])
                                      & (df2['condition_type'] == 'good')]['id']
     df2['commercially_viable'] = df2['commercially_viable'].apply(lambda x: 'yes' if x > 0 else 'no')
     df3 = df2.loc[df2['commercially_viable'] == 'yes']
 
-    # df4 used as base reference for price difference
-    df4['commercially_viable'] = df2[(df2['price'] > df2['price_mean'])
-                                     & (df2['size_type'] > df2['avg_size'])
-                                     & (df2['condition_type'] == 'good')]['id']
-    df4['commercially_viable'] = df4['commercially_viable'].apply(lambda x: 'yes' if x > 0 else 'no')
-    df3['estimate_profit_buy'] = round((df3['price'].apply(lambda x: df4['price'].mean() - x)), 2)
-
-    # Estimate profit of buying all houses
-    profit = round(sum(df3['price'].apply(lambda x: df4['price'].mean() - x).tolist()), 2)
+    # Profit calculation
+    df3['profit_buy'] = round(df3['price_mean_by_zip'] - df3['price'], 2)
+    profit = round(df3['profit_buy'].sum(), 2)
 
     # Scatter Map
     density_map = folium.Map(location=[data['lat'].mean(),
@@ -71,7 +65,10 @@ def commercially_viable_buy(data):
                                        default_zoom_start='15')
     marker_cluster = MarkerCluster().add_to(density_map)
     for name, row in df3.iterrows():
-        folium.Marker([row['lat'], row['long']]).add_to(marker_cluster)
+        folium.Marker([row['lat'], row['long']],
+                      popup='Price U${0} ID {1} Estimate Profit U${2}'.format(row['price'],
+                                                                              row['id'],
+                                                                              row['profit_buy'])).add_to(marker_cluster)
 
     # Streamlit output
     st.title('Commercial viability analysis (Buy)')
@@ -87,9 +84,6 @@ def selling_time(data):
     df1['season'] = df1['month'].apply(lambda x: 'spring' if x >= 3 and x <= 5 else
                                                  'summer' if x >= 6 and x <= 8 else
                                                  'autumn' if x >= 9 and x <= 11 else 'winter')
-    df2 = df1[['price', 'zipcode']].groupby('zipcode').median().reset_index()
-    df3 = pd.merge(df1, df2, on='zipcode', how='inner')
-    df3 = df3.rename(columns={'price_x': 'price', 'price_y': 'price_median_zipcode'}, inplace=False)
 
     def selling_price(season, price):
         if 'summer' in season:
@@ -102,19 +96,16 @@ def selling_time(data):
             selling_price = price + price * 0.1
         return round(selling_price, 2)
 
-    def selling_profit(price, selling_price):
-        selling_profit = selling_price - price
-        return selling_profit
 
-    df3['selling_price'] = df3.apply(lambda x: selling_price(x['season'], x['price']), axis=1)
-    df3['selling_profit'] = df3.apply(lambda x: selling_profit(x['price'], x['selling_price']), axis=1)
-    profit = df3['selling_profit'].sum()
+    df1['selling_price'] = df1.apply(lambda x: selling_price(x['season'], x['price']), axis=1)
+    df1['selling_profit'] = round(df1['selling_price'] - df1['price'], 2)
+    profit = df1['selling_profit'].sum()
 
     st.title('Commercial viability analysis (Sell)')
-    st.subheader(f'Total estimate profit ${profit}')
-    st.dataframe(df3.head())
+    st.subheader(f'Total estimate profit ${profit:.2f}')
+    st.dataframe(df1.head())
 
-    return df3
+    return df1
 
 
 #Hypothesis Testing
@@ -128,7 +119,7 @@ def waterview_price_difference(data):
     percentage = round((waterview_mean - not_waterview_mean) * 100 / waterview_mean)
     d1 = data
     d1['is_waterfront'] = d1['waterfront'].apply(lambda x: 'Houses with waterfront' if x == 1
-    else 'Houses without waterfront')
+                                                            else 'Houses without waterfront')
     waterfront = d1[['price', 'is_waterfront']].groupby('is_waterfront').mean().reset_index()
     fig_1 = px.bar(waterfront, x='is_waterfront', y='price', text_auto=True)
     st.title('Houses with waterfront are 30% more expensive')
@@ -145,7 +136,7 @@ def before_1955(data):
     percentage = round((after1955_mean - before1955_mean) * 100 / after1955_mean)
     d1 = data
     d1['1955'] = d1['yr_built'].apply(lambda x: 'Built before 1955' if x < 1955
-    else 'Built after 1955')
+                                                 else 'Built after 1955')
     in_1955 = d1[['price', '1955']].groupby('1955').mean().reset_index()
     fig_1 = px.bar(in_1955, x='1955', y='price', text_auto=True)
     st.title('Average price difference between Houses that were built before 1955 and after it')
@@ -293,10 +284,10 @@ def big_lot(data):
 
 # Houses renovated within the last 5 years are more likely to recieve a grade of more than 10
 def renovated_10(data):
-    more_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] >= 2013)]['grade'].mean()
-    less_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] < 2013)]['grade'].mean()
+    more_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] >= 2010)]['grade'].mean()
+    less_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] < 2010)]['grade'].mean()
     percentage = (more_10 - less_10) * 100 / more_10
-    bar_data = {'labels': ['Renovated after 2013', 'Renovated before 2013'],
+    bar_data = {'labels': ['Renovated after 2010', 'Renovated before 2010'],
                 'values': [more_10, less_10]}
     bar_df = pd.DataFrame(data=bar_data)
     fig_1 = px.bar(bar_df, x='labels', y='values', text_auto=True)
