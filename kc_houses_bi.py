@@ -282,7 +282,7 @@ def big_lot(data):
     return None
 
 
-# Houses renovated within the last 5 years are more likely to recieve a grade of more than 10
+# Houses renovated within the last 5 years are more likely to receive a grade over 10
 def renovated_10(data):
     more_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] >= 2010)]['grade'].mean()
     less_10 = data.loc[(data['grade'] >= 10) & (data['yr_renovated'] < 2010)]['grade'].mean()
@@ -291,7 +291,7 @@ def renovated_10(data):
                 'values': [more_10, less_10]}
     bar_df = pd.DataFrame(data=bar_data)
     fig_1 = px.bar(bar_df, x='labels', y='values', text_auto=True)
-    st.title('Houses renovated within the last 5 years are more likely to recieve a grade of more than 10')
+    st.title('Houses renovated within the last 5 years are more likely to receive a grade over 10')
     st.subheader(f'Houses renovated within the last 5 years are {percentage:.2f}% more likely to recieve a grade of 10 or more')
     st.plotly_chart(fig_1, use_container_width=True)
     return None
